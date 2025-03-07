@@ -1,0 +1,84 @@
+{
+  "name": "deepseekreview",
+  "displayName": "deepseekReview",
+  "description": "",
+  "version": "0.0.3",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:codeReview.addIssue",
+    "onCommand:codeReview.showIssues",
+    "onCommand:codeReview.showPanel"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeReview.addIssue",
+        "title": "deepseekdemo"
+      },
+      {
+        "command": "codeReview.showIssues",
+        "title": "deepseekdemoshowIssues"
+      },
+      {
+        "command": "codeReview.showPanel",
+        "title": "Review Code"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "codeReview.addIssue",
+          "when": "editorTextFocus && resourceScheme == file",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codeReview.showIssues",
+          "when": "editorTextFocus && resourceScheme == file",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codeReview.showPanel",
+          "when": "editorHasSelection",
+          "group": "navigation@1"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.70.0",
+    "@typescript-eslint/eslint-plugin": "^8.22.0",
+    "@typescript-eslint/parser": "^8.22.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.19.0",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.7.3",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@types/uuid": "^10.0.0",
+    "csv-stringify": "^6.2.0",
+    "marked": "^4.0.0",
+    "uuid": "^11.1.0"
+  }
+}
