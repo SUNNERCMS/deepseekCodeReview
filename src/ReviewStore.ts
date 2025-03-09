@@ -11,7 +11,7 @@ export class ReviewStore {
     const newComment = {
       ...comment,
       id: crypto.randomUUID(),
-      createdAt: new Date()
+      createdAt: new Date().toISOString()
     };
     await this.context.workspaceState.update(this.key, [...comments, newComment]);
     return newComment;
@@ -21,7 +21,12 @@ export class ReviewStore {
     return this.getAllComments().filter(c => c.filePath === filePath);
   }
 
-  private getAllComments(): CodeReviewComment[] {
-    return this.context.workspaceState.get<CodeReviewComment[]>(this.key) || [];
+  getAllComments(): CodeReviewComment[] {
+    const comments = this.context.workspaceState.get<CodeReviewComment[]>(this.key) || [];
+    return comments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async clearAllComments() {
+    await this.context.workspaceState.update(this.key, []);
   }
 }

@@ -1,129 +1,103 @@
-import * as child_process from 'child_process';
-import * as util from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
-const exec = util.promisify(child_process.exec);
+import simpleGit, { SimpleGit } from 'simple-git';
 
 export class GitHelper {
-  // 保存原始工作目录
-  private static originalCwd: string = process.cwd();
-
-  // 获取工程目录列表
-  private static async getProjectDirectories(rootPath: string): Promise<string[]> {
-    try {
-      const directories: string[] = [];
-      const items = await fs.promises.readdir(rootPath, { withFileTypes: true });
-      
-      for (const item of items) {
-        if (item.isDirectory() && !item.name.startsWith('.')) {
-          directories.push(item.name);
-        }
-      }
-      
-      console.log('Project directories:', directories);
-      return directories;
-    } catch (error) {
-      console.error('Error getting project directories:', error);
-      return [];
-    }
+  // 获取文件所在目录的路径
+  private static getDirectoryPath(filePath: string): string {
+    return path.dirname(filePath);
   }
 
-  // 设置工作目录到Git根目录
-  private static async setGitRootAsWorkingDirectory(filePath: string): Promise<string> {
+  private static async getGitRoot(git: SimpleGit): Promise<string> {
     try {
-      const gitRoot = await this.getGitRoot(filePath);
-      const originalDir = process.cwd();
-      process.chdir(gitRoot);
-      console.log(`Changed working directory from ${originalDir} to ${gitRoot}`);
-      return gitRoot;
-    } catch (error) {
-      console.error('Error setting git root as working directory:', error);
-      throw error;
-    }
-  }
-
-  // 恢复原始工作目录
-  private static restoreWorkingDirectory(): void {
-    try {
-      process.chdir(this.originalCwd);
-      console.log(`Restored working directory to ${this.originalCwd}`);
-    } catch (error) {
-      console.error('Error restoring working directory:', error);
-    }
-  }
-
-  private static async getGitRoot(filePath: string): Promise<string> {
-    try {
-      const { stdout } = await exec('git rev-parse --show-toplevel');
-      return stdout.trim();
+      const result = await git.revparse(['--show-toplevel']);
+      return result.trim();
     } catch (error) {
       console.error('Error getting git root:', error);
       throw new Error('Not a git repository. Please initialize a git repository first.');
     }
   }
 
-  // static async isGitRepository(filePath: string): Promise<boolean> {
-  //   try {
-  //     await exec('git rev-parse --is-inside-work-tree');
-  //     console.log(`isGitRepo: isGitRepo-00000`, filePath);
-
-  //     return true;
-  //   } catch (error) {
-  //     console.log(`isGitRepo: isGitRepo-11111`, filePath);
-
-  //     return false;
-  //   }
-  // }
-
   static async isGitRepository(filePath: string): Promise<boolean> {
     try {
-      // 从当前目录向上查找 .git 目录
-      console.log(`isGitRepo: isGitRepo-00000`, filePath);
+      // 使用文件所在的目录
+      const dirPath = this.getDirectoryPath(filePath);
+      console.log(`Checking directory: ${dirPath}`);
+      
+      // 检查目录是否存在
+      if (!fs.existsSync(dirPath)) {
+        console.log(`Directory does not exist: ${dirPath}`);
+        return false;
+      }
 
-      const gitDir = await exec('git rev-parse --git-dir', { cwd: filePath });
-      console.log(`isGitRepo: isGitRepo-00000---111`, gitDir);
-      return !!gitDir;
+      const git = simpleGit(dirPath);
+      const isRepo = await git.checkIsRepo();
+      console.log(`Checking if ${dirPath} is a git repository:`, isRepo);
+      return isRepo;
     } catch (error) {
+      console.log(`Error checking if ${filePath} is a git repository:`, error);
       return false;
     }
-}
+  }
 
   static async getLineCommitter(filePath: string, line: number): Promise<string> {
     try {
-      // Check if we're in a git repository first
+      // 使用文件所在的目录
+      const dirPath = this.getDirectoryPath(filePath);
+      console.log(`Using directory: ${dirPath}`);
+
+      // 检查目录是否存在
+      if (!fs.existsSync(dirPath)) {
+        console.log(`Directory does not exist: ${dirPath}`);
+        return 'Unknown';
+      }
+
+      // 初始化 simple-git
+      const git = simpleGit(dirPath);
+
+      // 检查是否是 Git 仓库
       const isGitRepo = await this.isGitRepository(filePath);
-      console.log(`isGitRepo: isGitRepo33`, isGitRepo);
+      console.log(`Is Git repository:`, isGitRepo);
       if (!isGitRepo) {
         throw new Error('Not a git repository. Please initialize a git repository first.');
       }
 
-      // 获取Git根目录并切换工作目录
-      const gitRoot = await this.setGitRootAsWorkingDirectory(filePath);
+      // 获取 Git 根目录
+      const gitRoot = await this.getGitRoot(git);
+      console.log(`Git root:`, gitRoot);
 
-      // 获取项目目录列表
-      const projectDirs = await this.getProjectDirectories(gitRoot);
-      console.log('Working with project directories:', projectDirs);
-
-      // Convert file path to be relative to git root
+      // 获取相对路径
       const relativePath = path.relative(gitRoot, filePath);
       console.log(`Relative path: ${relativePath}`);
-      
+
       try {
-        const command = `git blame -L ${line},${line} --porcelain "${relativePath}"`;
-        console.log(`Executing command: ${command}`);
+        // 使用 simple-git 的 blame 方法
+        const blameResult = await git.raw([
+          'blame',
+          '-L', `${line},${line}`,
+          '--porcelain',
+          relativePath
+        ]);
+
+        console.log(`Git blame output:`, blameResult);
         
-        const { stdout, stderr } = await exec(command);
-        console.log(`Git blame output: ${stdout}`);
-        if (stderr) {
-          console.error(`Git blame error: ${stderr}`);
+        // 解析结果获取提交者
+        const lines = blameResult.split('\n');
+        let author = 'Unknown';
+        
+        // 遍历行查找 author 字段
+        for (const line of lines) {
+          if (line.startsWith('author ')) {
+            author = line.substring('author '.length).trim();
+            break;
+          }
         }
         
-        const result = stdout.split('\n')[0].split(' ')[1];
-        console.log(`Extracted committer: ${result}`);
-        return result;
-      } finally {
-        // 恢复原始工作目录
-        this.restoreWorkingDirectory();
+        console.log(`Extracted author:`, author);
+        return author;
+      } catch (error) {
+        console.error('Error getting blame info:', error);
+        return 'Unknown';
       }
     } catch (error) {
       console.error('Error in getLineCommitter:', error);
