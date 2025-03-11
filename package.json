@@ -1,8 +1,9 @@
 {
-  "name": "deepseekreview",
-  "displayName": "deepseekReview",
-  "description": "",
-  "version": "0.0.3",
+  "name": "review-mark",
+  "displayName": "reviewMark",
+  "publisher": "jerrysun",
+  "description": "reviewMark",
+  "version": "0.0.8",
   "engines": {
     "vscode": "^1.70.0"
   },
@@ -28,6 +29,14 @@
       {
         "command": "codeReview.showPanel",
         "title": "Review Code"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "codeReview.showPanel",
+        "key": "ctrl+d",
+        "mac": "cmd+d",
+        "when": "editorHasSelection"
       }
     ],
     "menus": {

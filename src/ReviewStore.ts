@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { v4 as uuidv4 } from 'uuid';
 import { CodeReviewComment } from './types/CodeReview';
 
 export class ReviewStore {
@@ -10,7 +11,7 @@ export class ReviewStore {
     const comments = this.getAllComments();
     const newComment = {
       ...comment,
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       createdAt: new Date().toISOString()
     };
     await this.context.workspaceState.update(this.key, [...comments, newComment]);

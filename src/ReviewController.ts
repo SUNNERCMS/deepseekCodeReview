@@ -19,10 +19,17 @@ export class ReviewController {
     const document = editor.document;
     const selection = editor.selection;
 
-    const committer = await GitHelper.getLineCommitter(
-      document.uri.fsPath,
-      selection.start.line + 1
-    );
+    let committer = 'Unknown';
+    try {
+      committer = await GitHelper.getLineCommitter(
+        document.uri.fsPath,
+        selection.start.line + 1
+      );
+    } catch (error) {
+      console.error('Failed to get committer:', error);
+      // 如果获取提交人失败，使用默认值
+      committer = 'Unknown';
+    }
 
     const codeSelection: CodeSelection = {
       filePath: document.uri.fsPath,

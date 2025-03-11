@@ -49,15 +49,25 @@ export class ReviewPanel {
     private setupMessageHandler(context: vscode.ExtensionContext) {
       this.panel.webview.onDidReceiveMessage(async message => {
         if (message.command === 'submitComment') {
-          const store = new ReviewStore(context);
-          await store.addComment({
-            filePath: message.filePath,
-            startLine: message.startLine,
-            endLine: message.endLine,
-            committer: message.committer,
-            content: message.content
-          });
-          this.panel.dispose();
+          try {
+            const store = new ReviewStore(context);
+            await store.addComment({
+              filePath: message.filePath,
+              startLine: message.startLine,
+              endLine: message.endLine,
+              committer: message.committer,
+              content: message.content
+            });
+            // 显示成功消息
+            vscode.window.showInformationMessage('评论已添加');
+            // 确保面板被正确关闭
+            if (ReviewPanel.currentPanel) {
+              ReviewPanel.currentPanel.panel.dispose();
+              ReviewPanel.currentPanel = undefined;
+            }
+          } catch (error: any) {
+            vscode.window.showErrorMessage('添加评论失败: ' + (error.message || '未知错误'));
+          }
         } else if (message.command === 'confirmClear') {
           // 显示 VSCode 的确认对话框
           const result = await vscode.window.showWarningMessage(
@@ -92,6 +102,15 @@ export class ReviewPanel {
       selection: CodeSelection,
       comments: CodeReviewComment[]
     ): string {
+        // 对代码内容进行转义，确保HTML正确显示
+        const escapedCodeContent = selection.codeContent
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;')
+            .replace(/`/g, '&#96;');
+
         return `
         <html>
         <head>
@@ -141,6 +160,32 @@ export class ReviewPanel {
               border: none;
               border-radius: 3px;
             }
+            .committer-buttons {
+              display: flex;
+              gap: 10px;
+              margin-top: 10px;
+            }
+            .committer-button {
+              padding: 8px 15px;
+              cursor: pointer;
+              background-color: #007acc;
+              color: white;
+              border: none;
+              border-radius: 3px;
+              font-size: 14px;
+            }
+            .committer-button:hover {
+              background-color: #005999;
+            }
+            #commentInput {
+              width: 100%;
+              font-family: monospace;
+              padding: 8px;
+              border: 1px solid #ccc;
+              border-radius: 3px;
+              resize: vertical;
+              min-height: 100px;
+            }
           </style>
         </head>
         <body>
@@ -149,8 +194,13 @@ export class ReviewPanel {
           <p>Committer: ${selection.committer}</p>
           
           <div>
-            <textarea id="commentInput" rows="4" cols="50" placeholder="Enter your review comment..."></textarea>
-            <button onclick="submitComment()">Submit</button>
+            <textarea id="commentInput" rows="6" cols="50" placeholder="Enter your review comment...">${escapedCodeContent}</textarea>
+            <div class="committer-buttons">
+              <button class="committer-button" onclick="submitComment('启涵')">启涵</button>
+              <button class="committer-button" onclick="submitComment('鹏飞')">鹏飞</button>
+              <button class="committer-button" onclick="submitComment('昕一')">昕一</button>
+              <button class="committer-button" onclick="submitComment('赵祥')">赵祥</button>
+            </div>
           </div>
   
           <div class="comment-list">
@@ -196,7 +246,14 @@ export class ReviewPanel {
               }
             });
 
-            function submitComment() {
+            // 在页面加载完成后，将光标移动到文本区域的末尾
+            window.addEventListener('load', () => {
+              const textarea = document.getElementById('commentInput');
+              textarea.focus();
+              textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+            });
+
+            function submitComment(committer) {
               const input = document.getElementById('commentInput');
               if (!input.value.trim()) {
                 return; // 不提交空评论
@@ -207,7 +264,7 @@ export class ReviewPanel {
                 filePath: selection.filePath,
                 startLine: selection.startLine,
                 endLine: selection.endLine,
-                committer: selection.committer
+                committer: committer
               });
             }
 
