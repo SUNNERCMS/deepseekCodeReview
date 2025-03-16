@@ -3,7 +3,7 @@
   "displayName": "reviewMark",
   "publisher": "jerrysun",
   "description": "reviewMark",
-  "version": "0.0.8",
+  "version": "1.0.3",
   "engines": {
     "vscode": "^1.70.0"
   },
@@ -34,8 +34,8 @@
     "keybindings": [
       {
         "command": "codeReview.showPanel",
-        "key": "ctrl+d",
-        "mac": "cmd+d",
+        "key": "ctrl+shift+d",
+        "mac": "cmd+shift+d",
         "when": "editorHasSelection"
       }
     ],
