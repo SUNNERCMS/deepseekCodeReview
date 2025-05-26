@@ -102,6 +102,8 @@ export class ReviewPanel {
       selection: CodeSelection,
       comments: CodeReviewComment[]
     ): string {
+        // 初始评论人列表
+        const committerList = ["启涵", "鹏飞", "昕一", "赵祥"];
         // 对代码内容进行转义，确保HTML正确显示
         const escapedCodeContent = selection.codeContent
             .replace(/&/g, '&amp;')
@@ -164,6 +166,7 @@ export class ReviewPanel {
               display: flex;
               gap: 10px;
               margin-top: 10px;
+              flex-wrap: wrap;
             }
             .committer-button {
               padding: 8px 15px;
@@ -173,18 +176,57 @@ export class ReviewPanel {
               border: none;
               border-radius: 3px;
               font-size: 14px;
+              margin-right: 4px;
             }
             .committer-button:hover {
               background-color: #005999;
             }
-            #commentInput {
-              width: 100%;
-              font-family: monospace;
-              padding: 8px;
+            .remove-committer {
+              background: #dc3545;
+              color: #fff;
+              border: none;
+              border-radius: 50%;
+              width: 20px;
+              height: 20px;
+              margin-left: 2px;
+              cursor: pointer;
+              display: none;
+            }
+            .committer-manage-mode .remove-committer {
+              display: inline-block;
+            }
+            #addCommitterBox {
+              margin-top: 10px;
+              display: none;
+              gap: 6px;
+            }
+            .committer-manage-mode #addCommitterBox {
+              display: flex;
+            }
+            #addCommitterInput {
+              padding: 5px;
+              font-size: 14px;
               border: 1px solid #ccc;
               border-radius: 3px;
-              resize: vertical;
-              min-height: 100px;
+            }
+            #addCommitterBtn {
+              padding: 5px 10px;
+              font-size: 14px;
+              background: #28a745;
+              color: #fff;
+              border: none;
+              border-radius: 3px;
+              cursor: pointer;
+            }
+            #manageCommitterBtn {
+              margin-top: 10px;
+              padding: 5px 10px;
+              font-size: 14px;
+              background: #ffc107;
+              color: #333;
+              border: none;
+              border-radius: 3px;
+              cursor: pointer;
             }
           </style>
         </head>
@@ -195,12 +237,12 @@ export class ReviewPanel {
           
           <div>
             <textarea id="commentInput" rows="6" cols="50" placeholder="Enter your review comment...">${escapedCodeContent}</textarea>
-            <div class="committer-buttons">
-              <button class="committer-button" onclick="submitComment('启涵')">启涵</button>
-              <button class="committer-button" onclick="submitComment('鹏飞')">鹏飞</button>
-              <button class="committer-button" onclick="submitComment('昕一')">昕一</button>
-              <button class="committer-button" onclick="submitComment('赵祥')">赵祥</button>
+            <div class="committer-buttons" id="committerButtons"></div>
+            <div id="addCommitterBox">
+              <input id="addCommitterInput" type="text" placeholder="添加评论人" />
+              <button id="addCommitterBtn">添加</button>
             </div>
+            <button id="manageCommitterBtn">管理评论人</button>
           </div>
   
           <div class="comment-list">
@@ -227,13 +269,64 @@ export class ReviewPanel {
           <script>
             const vscode = acquireVsCodeApi();
             
-            // 存储代码选择信息
-            const selection = {
-              filePath: "${selection.filePath}",
-              startLine: ${selection.startLine},
-              endLine: ${selection.endLine},
-              committer: "${selection.committer}"
+            // 初始评论人列表
+            let committerList = ${JSON.stringify(committerList)};
+            let committerListBak = [...committerList];
+            let manageMode = false;
+            function renderCommitterButtons() {
+              const container = document.getElementById('committerButtons');
+              container.innerHTML = '';
+              container.className = 'committer-buttons' + (manageMode ? ' committer-manage-mode' : '');
+              committerList.forEach((name, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'committer-button';
+                btn.textContent = name;
+                btn.onclick = () => submitComment(name);
+                container.appendChild(btn);
+                // 删除按钮
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-committer';
+                removeBtn.title = '删除';
+                removeBtn.innerHTML = '×';
+                removeBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  committerList.splice(idx, 1);
+                  renderCommitterButtons();
+                };
+                container.appendChild(removeBtn);
+              });
+            }
+            function setManageMode(on) {
+              manageMode = on;
+              document.getElementById('addCommitterBox').style.display = on ? 'flex' : 'none';
+              renderCommitterButtons();
+              const btn = document.getElementById('manageCommitterBtn');
+              btn.textContent = on ? '保存评论人' : '管理评论人';
+            }
+            document.getElementById('manageCommitterBtn').onclick = () => {
+              if (!manageMode) {
+                committerListBak = [...committerList];
+                setManageMode(true);
+              } else {
+                setManageMode(false);
+              }
             };
+            document.getElementById('addCommitterBtn').onclick = () => {
+              const input = document.getElementById('addCommitterInput');
+              const name = input.value.trim();
+              if (name && !committerList.includes(name)) {
+                committerList.push(name);
+                input.value = '';
+                renderCommitterButtons();
+              }
+            };
+            document.getElementById('addCommitterInput').onkeydown = (e) => {
+              if (e.key === 'Enter') {
+                document.getElementById('addCommitterBtn').click();
+              }
+            };
+            renderCommitterButtons();
+            setManageMode(false);
 
             // 监听来自扩展的消息
             window.addEventListener('message', event => {
@@ -254,6 +347,7 @@ export class ReviewPanel {
             });
 
             function submitComment(committer) {
+              if (manageMode) return;
               const input = document.getElementById('commentInput');
               if (!input.value.trim()) {
                 return; // 不提交空评论
@@ -261,9 +355,9 @@ export class ReviewPanel {
               vscode.postMessage({
                 command: 'submitComment',
                 content: input.value,
-                filePath: selection.filePath,
-                startLine: selection.startLine,
-                endLine: selection.endLine,
+                filePath: "${selection.filePath}",
+                startLine: ${selection.startLine},
+                endLine: ${selection.endLine},
                 committer: committer
               });
             }
