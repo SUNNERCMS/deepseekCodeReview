@@ -169,31 +169,35 @@ export class ReviewPanel {
               flex-wrap: wrap;
             }
             .committer-button {
-              padding: 8px 15px;
-              cursor: pointer;
+              position: relative;
+               cursor: pointer;
               background-color: #007acc;
-              color: white;
-              border: none;
-              border-radius: 3px;
-              font-size: 14px;
-              margin-right: 4px;
+              display: flex;
+              padding: 4px 8px;
+               border: none;
+                border-radius: 3px;
+              align-items: center;
+              justify-content: center;
             }
-            .committer-button:hover {
-              background-color: #005999;
+                .committer-button:hover {
+              background-color:rgb(60, 161, 233);
             }
             .remove-committer {
-              background: #dc3545;
-              color: #fff;
+              background: transparent;
+              color: #dc3545;
               border: none;
               border-radius: 50%;
-              width: 20px;
-              height: 20px;
-              margin-left: 2px;
+              width: 18px;
+              height: 18px;
+              margin-left: 4px;
+              font-size: 16px;
+              line-height: 18px;
               cursor: pointer;
-              display: none;
-            }
-            .committer-manage-mode .remove-committer {
               display: inline-block;
+              transition: background 0.2s;
+            }
+            .committer-manage-mode .remove-committer:hover {
+              background: #ffeaea;
             }
             #addCommitterBox {
               margin-top: 10px;
@@ -277,23 +281,23 @@ export class ReviewPanel {
               const container = document.getElementById('committerButtons');
               container.innerHTML = '';
               container.className = 'committer-buttons' + (manageMode ? ' committer-manage-mode' : '');
-              committerList.forEach((name, idx) => {
+              committerList.forEach(function(name, idx) {
                 const btn = document.createElement('button');
                 btn.className = 'committer-button';
-                btn.textContent = name;
-                btn.onclick = () => submitComment(name);
-                container.appendChild(btn);
-                // 删除按钮
-                const removeBtn = document.createElement('button');
-                removeBtn.className = 'remove-committer';
-                removeBtn.title = '删除';
-                removeBtn.innerHTML = '×';
-                removeBtn.onclick = (e) => {
-                  e.stopPropagation();
-                  committerList.splice(idx, 1);
-                  renderCommitterButtons();
+                btn.type = 'button';
+                // 按钮内容：名字和X
+                btn.innerHTML = '<span class="committer-name">' + name + '</span><span class="remove-committer" style="' + (manageMode ? '' : 'display:none;') + '">×</span>';
+                btn.onclick = function(e) {
+                  var target = e.target;
+                  if (manageMode && target.classList && target.classList.contains('remove-committer')) {
+                    e.stopPropagation();
+                    committerList.splice(idx, 1);
+                    renderCommitterButtons();
+                  } else if (!manageMode) {
+                    submitComment(name);
+                  }
                 };
-                container.appendChild(removeBtn);
+                container.appendChild(btn);
               });
             }
             function setManageMode(on) {
